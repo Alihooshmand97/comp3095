@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: roomservice
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - isolated_network
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - isolated_network
+
+  roomservice:
+    build:
+      context: ./RoomService
+      dockerfile: ./Dockerfile
+    ports:
+      - "8087:8085"
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/roomservice
+      SPRING_DATASOURCE_USERNAME: myuser
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_BOOT_DEBUG: "true"
+    networks:
+      - isolated_network
+
+  bookingservice:
+    build:
+      context: ./BookingService
+      dockerfile: ./Dockerfile
+    ports:
+      - "8088:8086"
+    depends_on:
+      - mongodb
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/bookingdb
+    networks:
+      - isolated_network
+
+  userservice:
+    build:
+      context: ./UserService
+      dockerfile: ./Dockerfile
+    ports:
+      - "8092:8089"
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/userservice
+      SPRING_DATASOURCE_USERNAME: myuser
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_BOOT_DEBUG: "true"
+    networks:
+      - isolated_network
+
+  eventservice:
+    build:
+      context: ./EventService
+      dockerfile: ./Dockerfile
+    ports:
+      - "8093:8090"
+    depends_on:
+      - mongodb
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/eventservice
+    networks:
+      - isolated_network
+
+  approvalservice:
+    build:
+      context: ./ApprovalService
+      dockerfile: ./Dockerfile
+    ports:
+      - "8094:8091"
+    depends_on:
+      - mongodb
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/approvalservice
+    networks:
+      - isolated_network
+
+volumes:
+  postgres_data:
+  mongo_data:
+
+networks:
+  isolated_network:
+    driver: bridge
+
